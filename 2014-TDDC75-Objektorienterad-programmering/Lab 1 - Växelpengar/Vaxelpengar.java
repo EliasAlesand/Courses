@@ -1,6 +1,5 @@
 import java.util.Scanner;
-//andru411@student.liu.se Ämne TDDC77: Laboration 1
-public class vaxelpengar4{
+public class Vaxelpengar{
     public static void main(String[] args){
 	Scanner in = new Scanner(System.in);
 	
@@ -9,7 +8,7 @@ public class vaxelpengar4{
 	    System.out.println("Ange pris (kr):");
 	    pris = in.nextDouble();
 	    if (pris <0){
-		System.out.println("Priset får inte vara negativt.");
+		System.out.println("Priset fÃ¥r inte vara negativt.");
 	    }
 
 	}while(pris < 0);
@@ -19,25 +18,25 @@ public class vaxelpengar4{
 	    System.out.println("Hur mycket betalar du? (kr)");
 	    jagBetalar = in.nextDouble();
 	    if (jagBetalar < pris){
-		System.out.println("Du har inte råd.");
+		System.out.println("Du har inte rÃ¥d.");
 	    }
 	}while (jagBetalar < pris);
 	
 	double pengarKvar = jagBetalar - pris;
-	int[] pengaVärden ={500,100,50,20,10,5,1};
+	int[] pengaVÃ¤rden ={500,100,50,20,10,5,1};
 	int[] antalPengar = new int[7];
 	
-	for (int i=0;i<pengaVärden.length;i++){
-	    antalPengar[i] = (int)pengarKvar/pengaVärden[i];
-	    pengarKvar = (pengarKvar%pengaVärden[i]);
+	for (int i=0;i<pengaVÃ¤rden.length;i++){
+	    antalPengar[i] = (int)pengarKvar/pengaVÃ¤rden[i];
+	    pengarKvar = (pengarKvar%pengaVÃ¤rden[i]);
         }
         
-	//Lägger till en enkrona om det saknas tillräckligt många ören.
+	//LÃ¤gger till en enkrona om det saknas tillrÃ¤ckligt mÃ¥nga Ã¶ren.
 	if (pengarKvar >= 0.75){
 	    antalPengar[antalPengar.length-1] +=1;
 	}
 
-	System.out.print("Du får tillbaka " 
+	System.out.print("Du fÃ¥r tillbaka " 
 + antalPengar[0]+ " femhundralappar, "
 + antalPengar[1] + " hundralappar, " 
 + antalPengar[2] + " femtiolappar, " 
@@ -46,12 +45,12 @@ public class vaxelpengar4{
 + antalPengar[5] + " femmor, " 
 + antalPengar[6] + " enkronor och ");
 	
-	//Lägger till en femtioöring om antalet ören som saknas bör avrundas till 50, annars läggs ingen femtioöring till.
+	//LÃ¤gger till en femtioÃ¶ring om antalet Ã¶ren som saknas bÃ¶r avrundas till 50, annars lÃ¤ggs ingen femtioÃ¶ring till.
 	if (pengarKvar >= 0.25 && pengarKvar < 0.75){
-	    System.out.println("1 femtioöring.");
+	    System.out.println("1 femtioÃ¶ring.");
 		}
 	else{
-	    System.out.println("0 femtioöringar.");
+	    System.out.println("0 femtioÃ¶ringar.");
 	}
     }
 }
