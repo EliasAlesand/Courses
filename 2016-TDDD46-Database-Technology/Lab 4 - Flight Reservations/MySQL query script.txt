@@ -1,0 +1,367 @@
+delimiter ;
+DROP VIEW IF EXISTS allFlights;
+
+DROP PROCEDURE IF EXISTS addYear;
+DROP PROCEDURE IF EXISTS addDay;
+DROP PROCEDURE IF EXISTS addDestination;
+DROP PROCEDURE IF EXISTS addRoute;
+DROP PROCEDURE IF EXISTS addFlight;
+DROP PROCEDURE IF EXISTS addReservation;
+DROP PROCEDURE IF EXISTS addPassenger;
+DROP PROCEDURE IF EXISTS addContact;
+DROP PROCEDURE IF EXISTS addPayment;
+
+DROP FUNCTION IF EXISTS calculateFreeSeats;
+DROP FUNCTION IF EXISTS calculatePrice;
+DROP FUNCTION IF EXISTS randomizer;
+
+DROP TRIGGER IF EXISTS ticketTrigger;
+
+DROP TABLE IF EXISTS Booking;
+DROP TABLE IF EXISTS Contact;
+DROP TABLE IF EXISTS TravelCo;
+DROP TABLE IF EXISTS CreditCard;
+DROP TABLE IF EXISTS Passenger;
+DROP TABLE IF EXISTS Reservation;
+DROP TABLE IF EXISTS Flight;
+DROP TABLE IF EXISTS Schedule;
+DROP TABLE IF EXISTS Route;
+DROP TABLE IF EXISTS Weekday;
+DROP TABLE IF EXISTS Year;
+DROP TABLE IF EXISTS Airport;
+
+CREATE TABLE Airport
+(
+code VARCHAR(3) NOT NULL,
+airp_name VARCHAR(30) NOT NULL,
+country VARCHAR(30) NOT NULL,
+PRIMARY KEY (code)
+);
+
+CREATE TABLE Year
+(
+year        INTEGER NOT NULL,
+profitFactor     DOUBLE NOT NULL,
+PRIMARY KEY(year)
+);
+
+CREATE TABLE Weekday
+(
+weekday    VARCHAR(10) NOT NULL,
+wFactor	 DOUBLE NOT NULL,
+year	INTEGER NOT NULL,
+PRIMARY KEY(weekday, year),
+FOREIGN KEY (year) REFERENCES Year(year)
+);
+
+CREATE TABLE Route
+(
+destAirp    VARCHAR(3) NOT NULL, 
+originAirp    VARCHAR(3) NOT NULL,
+routePrice    DOUBLE NOT NULL,
+year	INTEGER NOT NULL,
+PRIMARY KEY (destAirp, originAirp, year),
+FOREIGN KEY (destAirp) REFERENCES Airport(code),
+FOREIGN KEY (originAirp) REFERENCES Airport(code),
+FOREIGN KEY (year) REFERENCES Year(year)
+);
+
+CREATE TABLE Schedule
+(
+scheduleID    INTEGER NOT NULL AUTO_INCREMENT,
+time        TIME NOT NULL,
+year        INTEGER NOT NULL,
+weekday    VARCHAR(10) NOT NULL,
+destAirp    VARCHAR(3) NOT NULL,
+originAirp    VARCHAR(3) NOT NULL,
+PRIMARY KEY(scheduleID),
+FOREIGN KEY (weekday, year) REFERENCES Weekday(weekday, year),
+FOREIGN KEY (destAirp, originAirp, year) REFERENCES Route(destAirp, originAirp, year)
+);
+
+CREATE TABLE Flight
+(
+flightNr        INTEGER NOT NULL AUTO_INCREMENT,
+week        INTEGER NOT NULL,
+scheduleID    INTEGER NOT NULL,
+PRIMARY KEY(flightNr),
+FOREIGN KEY (scheduleID) REFERENCES Schedule(scheduleID)
+);
+
+CREATE TABLE Reservation
+(
+reservationNr        INTEGER NOT NULL AUTO_INCREMENT,
+nrOfPassengers        INTEGER NOT NULL,
+flightNr            INTEGER NOT NULL,
+PRIMARY KEY(reservationNr),
+FOREIGN KEY (flightNr) REFERENCES Flight(flightNr)
+);
+
+CREATE TABLE Passenger
+(
+passportNr    INTEGER NOT NULL,
+name        VARCHAR(30) NOT NULL,
+PRIMARY KEY(passportNr)
+);
+
+
+CREATE TABLE CreditCard
+(
+cardNr    BIGINT NOT NULL,
+holder    VARCHAR(30) NOT NULL,
+PRIMARY KEY(cardNr)
+);
+
+
+CREATE TABLE TravelCo
+(
+ticketNr    INTEGER,
+passportNr    INTEGER NOT NULL,
+reservationNr    INTEGER NOT NULL,
+PRIMARY KEY(passportNr, reservationNr),
+FOREIGN KEY(passportNr) REFERENCES Passenger(passportNr),
+FOREIGN KEY(reservationNr) REFERENCES Reservation(reservationNr)
+);
+
+CREATE TABLE Contact
+(
+reservationNr    INTEGER NOT NULL,
+email        VARCHAR(30) NOT NULL,
+phoneNr    BIGINT NOT NULL,
+passportNr    INTEGER NOT NULL,
+PRIMARY KEY(reservationNr),
+FOREIGN KEY(passportNr, reservationNr) REFERENCES TravelCo(passportNr, reservationNr)
+);
+
+CREATE TABLE Booking
+(
+bookingNr    INTEGER NOT NULL,
+price        INTEGER NOT NULL,
+cardNr        BIGINT NOT NULL,
+PRIMARY KEY(bookingNr),
+/*FOREIGN KEY(bookingNr) REFERENCES Contact(reservationNr),*/
+FOREIGN KEY(cardNr) REFERENCES CreditCard(cardNr)
+);
+
+delimiter $$
+
+CREATE FUNCTION calculateFreeSeats(flightnumber INTEGER)
+RETURNS INTEGER
+BEGIN
+DECLARE takenSeats INTEGER;
+SET takenSeats = (
+SELECT COUNT(reservationNr) FROM TravelCo WHERE ticketNr IS NOT NULL AND reservationNr IN(
+SELECT reservationNr FROM Reservation WHERE flightNr = flightnumber));
+RETURN (40-takenSeats);
+END$$
+
+CREATE FUNCTION calculatePrice(flightnumber INTEGER)
+RETURNS DOUBLE
+BEGIN
+DECLARE totalPrice DOUBLE;
+DECLARE weekdayFactor DOUBLE;
+DECLARE profitFactor DOUBLE;
+DECLARE routePrice DOUBLE;
+DECLARE price DOUBLE;
+
+
+
+SET weekdayFactor = (
+SELECT wFactor FROM Weekday = w WHERE (w.weekday, w.year) IN (
+SELECT s.weekday, s.year FROM Schedule = s WHERE scheduleID IN(
+SELECT f.scheduleID FROM Flight = f WHERE f.flightNr = flightnumber)));
+
+
+SET profitFactor = (
+SELECT y.profitFactor FROM Year = y WHERE y.year IN (
+SELECT s.year FROM Schedule = s WHERE scheduleID IN(
+SELECT f.scheduleID FROM Flight = f WHERE f.flightNr = flightnumber)));
+
+
+SET routePrice = (
+SELECT r.routePrice FROM Route = r WHERE (r.destAirp, r.originAirp, r.year) IN (
+SELECT s.destAirp, s.originAirp, s.year FROM Schedule = s WHERE scheduleID IN(
+SELECT f.scheduleID FROM Flight = f WHERE f.flightNr = flightnumber)));
+
+SET price = (routePrice*weekdayFactor*((40-(SELECT calculateFreeSeats(flightnumber))+1)/40)*profitFactor);
+
+SET totalPrice = FORMAT(price, 3);
+RETURN totalPrice;
+END$$
+
+CREATE FUNCTION randomizer()
+RETURNS INTEGER
+BEGIN
+DECLARE randNr INTEGER;
+DECLARE counter INTEGER;
+SET counter = 0;
+WHILE randNr IN(SELECT t.ticketNr FROM TravelCo = t) OR counter = 0
+	DO 
+	SET counter = 1;
+	SET randNr = rand()*100000;
+END WHILE;
+RETURN randNr;
+END;
+$$
+delimiter //
+
+CREATE PROCEDURE addYear (IN year INTEGER, IN factor DOUBLE)
+BEGIN
+INSERT INTO Year(year, profitFactor)
+VALUES (year, factor);
+END;
+//
+
+CREATE PROCEDURE addDay (IN year INTEGER, IN day VARCHAR(30), IN factor DOUBLE)
+BEGIN
+INSERT INTO Weekday(year, weekday, wFactor)
+VALUES (year, day, factor);
+END;
+//
+
+CREATE PROCEDURE addDestination(IN airport_code VARCHAR(3), IN name VARCHAR(30), IN country VARCHAR(30))
+BEGIN
+INSERT INTO Airport(code, airp_name, country)
+VALUES(airport_code, name, country);
+END;
+//
+
+CREATE PROCEDURE addRoute(IN departure_airport_code VARCHAR(3), IN arrival_airport_code VARCHAR(3), IN year INTEGER, IN routeprice DOUBLE)
+BEGIN
+INSERT INTO Route(originAirp, destAirp, routePrice, year)
+VALUES(departure_airport_code, arrival_airport_code, routeprice, year);
+END;
+//
+
+CREATE PROCEDURE addFlight(IN departure_airport_code VARCHAR(3), IN arrival_airport_code VARCHAR(3), IN year INTEGER, IN day VARCHAR(10), IN time TIME)
+BEGIN
+DECLARE counter int DEFAULT 1;
+DECLARE latestID int;
+INSERT INTO Schedule(time, year, weekday, originAirp, destAirp)
+VALUES(time, year, day, departure_airport_code, arrival_airport_code);
+
+SET latestID = (
+SELECT scheduleID 
+FROM Schedule 
+ORDER BY scheduleID DESC 
+LIMIT 1);
+
+WHILE counter < 53 DO
+	INSERT INTO Flight(week,scheduleID)
+	VALUES(counter, latestID);
+	SET counter = counter+1;
+END WHILE;
+END;
+//
+
+CREATE PROCEDURE addReservation(IN departure_airport_code VARCHAR(3), IN arrival_airport_code VARCHAR(3), IN year INTEGER, IN week INTEGER, IN day VARCHAR(10), IN time TIME, IN number_of_passengers INTEGER, OUT output_reservation_nr INTEGER)
+BEGIN
+DECLARE flightNr INTEGER;
+DECLARE scheduleID INTEGER;
+DECLARE freeSeats INTEGER;
+
+SET scheduleID = (SELECT s.scheduleID FROM Schedule = s WHERE s.time = time AND s.year = year AND s.weekday = day AND destAirp = arrival_airport_code AND originAirp = departure_airport_code);
+SET flightNr = (SELECT f.flightNr FROM Flight = f WHERE f.week = week AND f.scheduleID = scheduleID);
+SET freeSeats = calculateFreeSeats(flightNr);
+
+
+IF flightNr IS NULL
+	THEN SELECT 'There exists no flight for the given route, date, and time' AS 'Error';
+ELSEIF	(freeSeats < number_of_passengers) THEN
+	SELECT 'There are not enough seats avaliable on the chosen flight' AS 'Error';
+ELSE	INSERT INTO Reservation(nrOfPassengers, flightNr)
+	VALUES(number_of_passengers, flightNr);
+	SET output_reservation_nr = (
+	SELECT reservationNr 
+	FROM Reservation
+	ORDER BY reservationNr DESC 
+	LIMIT 1);
+END IF;
+END;
+//
+
+CREATE PROCEDURE addPassenger(reservation_nr INTEGER, passport_nr INTEGER, name VARCHAR (30))
+
+BEGIN
+
+IF passport_nr NOT IN(SELECT p.passportNr FROM Passenger = p) THEN
+	INSERT INTO Passenger(passportNr, name)
+	VALUES(passport_nr, name);
+
+END IF;
+
+IF reservation_nr IN (SELECT b.bookingNr FROM Booking = b) THEN
+	SELECT 'The booking has already been payed and no further passengers can be added' AS 'Error';
+ELSEIF reservation_nr IN(SELECT r.reservationNr FROM Reservation = r) THEN
+	INSERT INTO TravelCo(passportNr, reservationNr)
+	VALUES(passport_nr, reservation_nr);
+ELSE SELECT 'The given reservation number does not exist' AS 'Error';
+END IF;
+END;
+//
+
+CREATE PROCEDURE addContact(reservation_nr INTEGER, passport_number INTEGER, email VARCHAR(30), phone BIGINT)
+BEGIN
+IF reservation_nr NOT IN (SELECT r.reservationNr FROM Reservation = r)
+	THEN SELECT 'The given reservation number does not exist' AS 'Error';
+ELSEIF reservation_nr NOT IN(SELECT t.reservationNr FROM TravelCo = t WHERE t.passportNr = passport_number) THEN SELECT 'The person is not a passenger of the reservation' AS 'Error';
+
+ELSEIF reservation_nr IN(SELECT r.reservationNr FROM Reservation = r) THEN
+	INSERT INTO Contact(reservationNr, email, phoneNr, passportNr)
+	VALUES(reservation_nr, email, phone, passport_number);
+END IF;
+END;
+//
+
+CREATE PROCEDURE addPayment(reservation_nr INTEGER, cardholder_name VARCHAR(30), credit_card_number BIGINT)
+BEGIN
+DECLARE flightNr INTEGER;
+DECLARE price DOUBLE;
+DECLARE freeSeats INTEGER;
+DECLARE passengerCount INTEGER;
+
+SET flightNr = (SELECT r.flightNr FROM Reservation = r WHERE r.reservationNr = reservation_nr);
+
+SET price = calculatePrice(flightNr);
+SET freeSeats = calculateFreeSeats(flightNr);
+
+SET passengerCount = (SELECT COUNT(t.reservationNr) FROM TravelCo = t WHERE t.reservationNr = reservation_nr);
+
+IF reservation_nr NOT IN (SELECT r.reservationNr FROM Reservation = r) THEN
+	SELECT 'The given reservation number does not exist' AS 'Error';
+ELSEIF reservation_nr NOT IN (SELECT c.reservationNr FROM Contact = c)
+	THEN SELECT 'The reservation has no contact yet';
+ELSEIF (freeSeats) < (passengerCount)
+	THEN SELECT 'There are not enough seats available on the flight 	anymore, deleting reservation';
+	
+ELSE
+	SELECT SLEEP(5);
+	IF credit_card_number NOT IN (SELECT cardNr FROM CreditCard)
+		THEN INSERT INTO CreditCard(cardNr, holder)
+		VALUES (credit_card_number, cardholder_name);
+	END IF;
+	INSERT INTO Booking(bookingNr, price, cardNr)
+	VALUES(reservation_nr, price, credit_card_number);
+END IF;
+
+END;
+//
+
+delimiter ;
+
+CREATE TRIGGER ticketTrigger
+AFTER INSERT ON Booking
+FOR EACH ROW
+UPDATE TravelCo SET ticketNr =
+ randomizer() WHERE reservationNr = NEW.bookingNr;
+
+
+CREATE VIEW allFlights(departure_city_name, destination_city_name, departure_time, departure_day, departure_week, departure_year, nr_of_free_seats, current_price_per_seat) AS
+SELECT a1.airp_name, a2.airp_name, s.time, s.weekday, f.week, s.year, calculateFreeSeats(f.flightNr), calculatePrice(f.flightNr)
+FROM Flight = f
+LEFT JOIN Schedule = s ON s.scheduleID = f.scheduleID
+LEFT JOIN Airport = a1 ON s.originAirp = a1.code
+LEFT JOIN Airport = a2 ON s.destAirp = a2.code;
+
+
+
