@@ -1,0 +1,68 @@
+ssort([X],[X]).
+ssort(L,LS):-
+	findMin(L,M),
+	delete(M,L,T),
+	ssort(T,L1),
+	append([M],L1,LS).
+
+delete(X,L,R):-
+	once(append(H,[X|T],L)),
+	append(H,T,R).
+
+findMin([X],X).
+findMin(L,X):-
+	append([A,B], L1, L),
+	A<B,
+	findMin([A|L1],X).
+
+findMin(L,X):-
+	append([A,B], L1, L),
+	A>=B,
+	findMin([B|L1],X).
+
+isSorted([A,B]):-
+	A=<B.
+
+isSorted([A,B|L]):-
+	A=<B,
+	isSorted([B|L]).
+
+gs(X,Y,[]):-
+	X=<Y.
+
+gs(X,Y,[Y]):-
+	X>Y.
+
+getSmaller(X,[],[]).
+	
+getSmaller(X,[Y|L],R):-
+	gs(X,Y,R1),
+	append(R1,WR,R),
+	getSmaller(X,L,WR).
+
+gb(X,Y,[]):-
+	X>Y.
+
+gb(X,Y,[Y]):-
+	Y>=X.
+
+getBigger(X,[],[]).
+
+getBigger(X,[Y|L],R):-
+	gb(X,Y,R1),
+	append(R1,WR,R),
+	getBigger(X,L,WR).
+
+partition([H|T],L1,L2,H):-
+	getSmaller(H,T,L1),
+	getBigger(H,T,L2).
+
+qsort([],[]).
+
+qsort([X],[X]).
+
+qsort(L,LS):-
+	partition(L,L1,L2,P),
+	once(qsort(L1,L1S)),
+	once(qsort(L2,L2S)),
+	append(L1S,[P|L2S],LS).

@@ -1,0 +1,234 @@
+id(I):-
+	atom(I).
+num(N):-
+	number(N).
+
+map(I,N):-
+	id(I),
+	num(N).
+
+execute(S0, skip, S0 ).
+
+execute(S0, seq(C1,C2), Sn):-
+	once(execute(S0,C1,S1)),
+	once(execute(S1,C2,Sn)).
+
+execute(S0, set(id(I),E), Sn):-
+	evaluate(S0,E,R),
+	once(update(I,R,S0,Sn)).
+
+execute(S0, if(B,C1,C2),Sn):-
+	condition(S0,B,tt),
+	execute(S0,C1,Sn).
+	
+execute(S0, if(B,C1,C2),Sn):-
+	condition(S0,B,ff),
+	execute(S0,C2,Sn).
+
+
+execute(S0, while(B,C),S0):-
+	condition(S0,B,ff).
+
+execute(S0, while(B,C),Sn):-
+	condition(S0,B,tt),
+	once(execute(S0,C,S1)),
+	once(execute(S1, while(B,C),Sn)).
+
+%finds an id(I) in a list and returns a value N
+find(I,[map(I,N)|T],N).
+find(I,[map(A,B)|T],N):-
+	find(I,T,N).
+
+%fins an id(I) in a list and returns tt/ff
+contains(I,[],ff).
+contains(I,[map(I,B)|T],tt).
+contains(I,[map(A,B)|T],R):-
+	contains(I,T,R).
+
+update(I,N,[map(I,X)|T], [map(I,N)|T]).
+update(I,N,[map(A,B)|T], R):-
+	contains(I,[map(A,B)|T],tt),
+	update(I,N,T,WR),
+	append([map(A,B)],WR,R).
+update(I,N,L,R):-
+	contains(I,L,ff),
+	append([map(I,N)],L,R).
+
+
+condition(S0,tt,tt).
+condition(S0,ff,ff).
+condition(S0, E1>E2, tt):-
+	evaluate(S0,E1,R1),
+	evaluate(S0,E2,R2),
+	R1>R2.
+condition(S0, E1>E2, ff):-
+	evaluate(S0,E1,R1),
+	evaluate(S0,E2,R2),
+	R1=<R2.
+condition(S0, E1>=E2, tt):-
+	evaluate(S0,E1,R1),
+	evaluate(S0,E2,R2),
+	R1>=R2.
+condition(S0, E1>=E2, ff):-
+	evaluate(S0,E1,R1),
+	evaluate(S0,E2,R2),
+	R1<R2.
+	
+evaluate(S0,num(N),N).
+evaluate(S0,A+B,R):-
+	evaluate(S0,A,R1),
+	evaluate(S0,B,R2),
+	R is R1+R2.
+evaluate(S0,A-B,R):-
+	evaluate(S0,A,R1),
+	evaluate(S0,B,R2),
+	R is R1-R2.
+evaluate(S0,A*B,R):-
+	evaluate(S0,A,R1),
+	evaluate(S0,B,R2),
+	R is R1*R2.
+evaluate(S0,A/B,R):-
+	evaluate(S0,A,R1),
+	evaluate(S0,B,R2),
+	R is R1/R2.
+evaluate(S0,id(I),N):-
+	find(I,S0,N).
+
+%run([map(x,0)],"y:=1",Out).
+run(In,String,Out):-
+	scan(String, Tokens),
+	parse(Tokens,AbstStx),
+	execute(In,AbstStx,Out).
+
+parse(Tokens,AbstStx):-
+	once(pgm(AbstStx,Tokens,[])).
+
+pgm(T) --> cmd(T).
+pgm(seq(X,Y)) --> cmd(X),[;],pgm(Y).
+cmd(set(ID,EXP)) --> id(ID),[:=],expr(EXP).
+cmd(skip) --> [skip].
+cmd(if(B,C1,C2)) --> [if],bool(B),[then],pgm(C1),[else],pgm(C2),[fi].
+cmd(while(B,C)) --> [while],bool(B),[do],pgm(C),[od].
+id(id(ID)) --> [id(ID)].
+term(num(NUM)) --> [num(NUM)].
+term(id(ID)) --> [id(ID)].
+expr(X) --> term(X).
+expr(X - Y) --> term(X),[-],expr(Y).
+expr(X + Y) --> term(X),[+],expr(Y).
+expr(X * Y) --> term(X),[*],expr(Y).
+expr(X / Y) --> term(X),[/],expr(Y).
+bool(X > Y) --> expr(X),[>],expr(Y).
+bool(X >= Y) --> expr(X),[>=],expr(Y).
+bool(tt) --> [tt].
+bool(ff) --> [ff].
+
+%scan("y:=1; z:=0; while x>z do z:=z+1; y:=y*z od",R).
+%parse([id(x),:=,num(3)], X).
+
+% Scanner for assignment 3
+% TDDD08 Logic Programming
+%
+% top predicate:
+% scan(+String, -Tokens) 
+%
+% try: scan("x:=3; y:=1; while x>1 do y := y*x; x := x-1 od",Tokens).
+%
+% NOTE: strings are lists of ASCII codes, i.e.
+% "Prolog" = [80,114,111,108,111,103]
+
+scan([],[]).
+scan([C|Cs],[';'|Ts]) :-
+	semicolon(C),!,
+	scan(Cs,Ts).
+scan([C|Cs],Ts) :-
+	space(C),!,
+	scan(Cs,Ts).
+scan([C|Cs],[num(T)|Ts]) :-
+	digit(C),!,
+	scan_number(Cs,Cs1,CNum),
+	name(T,[C|CNum]),
+	scan(Cs1,Ts).
+scan([C1,C2|Cs],[T|Ts]) :-
+	name(T,[C1,C2]),
+	operator(T),!,
+	scan(Cs,Ts).
+scan([C|Cs],[T|Ts]):-
+	name(T,[C]),
+	operator(T),!,
+	scan(Cs,Ts).
+scan([C|Cs],[T|Ts]) :-
+	letter(C),
+	scan_key_or_id(Cs,Cs1,CWord),
+	name(Word,[C|CWord]),
+	classify(Word,T),
+	scan(Cs1,Ts).
+
+% scaning a number
+% scan_number(+In, -Out, -Num)
+% Num is a string of digits from front of In,
+% Out is the remaining string
+
+scan_number([C|Cs],Cs1,[C|CN]) :-
+	digit(C),!,
+	scan_number(Cs,Cs1,CN).
+scan_number(Cs,Cs,[]).
+
+% scaning a keyword or an identifier
+% scan_key_or_id(+In, -Out, -Word)
+% Word is a string from front of In,
+% Out is the remaining string
+
+scan_key_or_id([C|Cs],Cs1,[C|CW]) :-
+	(letter(C)
+	 ;
+	 digit(C)
+	),!,
+	scan_key_or_id(Cs,Cs1,CW).
+scan_key_or_id(Cs,Cs,[]).
+
+% distinguishing keywords from identifiers
+
+classify(W,T) :-
+	keyword(W),!,
+	T = W.
+classify(W,id(W)).
+
+
+digit(C) :-
+	C >= "0", C =< "9".
+
+
+letter(C) :-
+	C >= "a", C =< "z"
+	;
+	C >= "A", C =< "Z".
+
+
+semicolon(59).
+
+
+operator('*').
+operator('+').
+operator('/').
+operator('-').
+operator('>').
+operator('<').
+operator('=').
+operator('=<').
+operator('>=').
+operator(':=').
+
+
+space(32).
+
+
+keyword(skip).
+keyword(if).
+keyword(then).
+keyword(else).
+keyword(fi).
+keyword(while).
+keyword(do).
+keyword(od).
+keyword(true).
+keyword(false).

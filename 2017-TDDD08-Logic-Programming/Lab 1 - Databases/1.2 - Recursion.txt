@@ -1,0 +1,31 @@
+edge(a,b).
+edge(a,c).
+edge(b,c).
+edge(c,d).
+edge(d,h).
+edge(d,f).
+edge(c,e).
+edge(e,f).
+edge(e,g).
+edge(f,g).
+
+path(X,Y) :-
+	edge(X,Y).
+
+path(X,Y) :-
+	edge(X,Z),
+	path(Z,Y).
+
+path(X,Y,L) :-
+	edge(X,Y),
+	append([X],[Y],L).
+
+path(X,Y,L) :-
+	edge(X,Z),
+	path(Z,Y,K),
+	append([X],K,L).
+
+npath(X,Y,N) :-
+	path(X,Y,L),
+	length(L,M),
+	N is M-1.

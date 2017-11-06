@@ -1,0 +1,50 @@
+beautiful(ulrika).
+beautiful(nisse).
+beautiful(peter).
+
+rich(nisse).
+rich(bettan).
+
+strong(bettan).
+strong(peter).
+strong(bosse).
+
+kind(bosse).
+
+man(nisse).
+man(peter).
+man(bosse).
+woman(ulrika).
+woman(bettan).
+
+likes(X,Y):-
+	man(X), woman(Y), beautiful(Y).
+
+likes(nisse,X):-
+	woman(X), likes(X,nisse).
+	
+likes(ulrika,X):-
+	rich(X), kind(X), man(X), likes(X, ulrika).
+
+likes(ulrika,X):-
+	beautiful(X), strong(X), man(X), likes(X, ulrika).
+
+happy(X):-
+	rich(X).
+
+happy(X):-
+	man(X), woman(Y), likes(X,Y), likes(Y,X).
+
+happy(X):-
+	woman(X), man(Y), likes(X,Y), likes(Y,X).
+
+
+
+%Who is happy?
+%findall(X,happy(X),L).
+
+%Who likes who?
+%findall((X,Y),likes(X,Y),L).
+
+%How many persons like Ulrika?
+%findall(X,likes(X,ulrika),L), length(L,Y).

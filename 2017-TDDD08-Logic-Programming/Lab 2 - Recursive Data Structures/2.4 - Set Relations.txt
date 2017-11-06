@@ -1,0 +1,89 @@
+intersect([],_,[]).
+
+intersect(A,B,R):-
+	findMin(A,X),
+        delete(X,A,Xt),
+	once(contains(X,B,Xr)),
+	append(Xr,WR,R),
+	once(intersect(Xt,B,WR)).
+
+
+union(A,B,R):-
+	append(A,B,L),
+	once(union2(L, R)).
+
+union2([],[]).
+union2(L,R):-
+	findMin(L,X),
+	delete(X,L,Xt),
+	once(union2(Xt,WR)),
+	once(uniqueAppend(WR,X,R)).
+
+powerset([],[[]]).
+powerset(L,R):-
+	setof(X,powersetInit(L,X),WR),
+	append([[]],WR,R).
+
+%Begins the recursion with element []. Extracts elements from the tree traversal
+%and sorts them.
+powersetInit(L,R):-
+	powersetRecursion([],L,WR),
+	delete(E,WR,_),
+	ssort(E,R).
+
+%Produces lists(R) of subsets of L by traversing a tree of possible orders
+%of the tokens in L. 
+powersetRecursion(Prev,L,R):-
+	delete(X,L,R1),
+	append(Prev,[X],Cs),
+	powersetRecursion(Cs,R1,WR),
+	append(WR,[Cs],R).
+
+powersetRecursion(Prev,[],[]).
+
+	
+uniqueAppend(WR,X,WR):-
+	exists(X,WR).
+uniqueAppend(WR,X,R):-
+	notExists(X,WR),
+	append([X],WR,R).
+
+
+contains(E,[],[]).
+
+contains(E,[Lh|Lt],[E]):-
+	E == Lh.
+
+contains(E,[Lh|Lt],R):-
+	once(contains(E,Lt,R)).
+
+exists(E,L):-
+	contains(E,L,R),
+	R==[E].
+	
+notExists(E,L):-
+	contains(E,L,R),
+	R == [].
+	
+	
+findMin([X],X).
+findMin(L,X):-
+	append([A,B], L1, L),
+	A@<B,
+	findMin([A|L1],X).
+
+findMin(L,X):-
+	append([A,B], L1, L),
+	A@>=B,
+	findMin([B|L1],X).
+
+delete(X,L,R):-
+	append(H,[X|T],L),
+	append(H,T,R).
+
+ssort([X],[X]).
+ssort(L,LS):-
+	findMin(L,M),
+	delete(M,L,T),
+	ssort(T,L1),
+	append([M],L1,LS).

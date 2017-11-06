@@ -1,0 +1,26 @@
+B ::= tt | ff.
+
+bool(B).
+
+pair(K,V) :- integer(V).
+id(I).
+num(N):-
+	integer(N).	
+e(N):-
+	num(N).
+e(I):-
+	id(I).
+
+e(+(e,e)):-
+	e+e.
+
+r(a,2)],pair(b,3),EN).
+
+update(E,New,NE) :-
+	append([New],E,NE).
+
+set(id(K),num(V)):-
+	pair(K,V).
+
+execute(S0,set(id(K),num(V)),SN):-
+	update(S0,pair(K,V),SN).

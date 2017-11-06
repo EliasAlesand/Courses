@@ -1,0 +1,64 @@
+:- use_module(library(clpfd)).
+
+%Instantiate the model of the problem. container(X,Y,Z) where X is an identifier, Y is the number of workers needed, Z is the amount of time needed.
+container(1,2,2).
+container(2,4,1).
+container(3,2,2).
+container(4,1,1).
+
+on(1,4).
+on(2,3).
+on(3,4).
+
+%Finds the lowest Cost of the problem.
+schedule(Time, Workers,Cost):-
+	findall(X1, container(_,_,X1), D),
+	findall(X2, container(_,X2,_), R),
+	findall(X3, container(X3,_,_), I),
+	length(D,N),
+	length(E,N),
+	length(S,N),
+	domain(S,0,100),
+	domain(E,0,100),
+	Workers in 0..50,
+	Time in 0..200,
+	ready(E, Time),
+	tasks(S,D,E,R,I,Tasks),
+	ontop(Tasks, Tasks),
+	cumulative(Tasks, [limit(Workers)]),
+	Cost #= Workers*Time,
+	labeling([minimize(Cost)], [Cost|S]).
+
+%Lists all tasks.
+tasks([],[],[],[],[],[]).
+tasks([S|Ss], [D|Ds], [E|Es], [R|Rs],[I|Is], [T|Ts]):-
+	T = task(S, D, E, R, I),
+	tasks(Ss, Ds, Es, Rs,Is, Ts).
+
+%The problem is solved if Done is larger than the end times of all tasks
+ready([], _).
+ready([E|Es], Done):-
+	Done #>= E,
+	ready(Es, Done).
+
+%Sets constraints that a block cannot be removed if it is not on top.
+ontop([],_).
+ontop([task(S,_,E,_,Over)|Tasks], AllTasks):-
+	once(findall(Under, on(Over,Under), Underlist)),
+	once(rules(E, Underlist, AllTasks)),
+	once(ontop(Tasks, AllTasks)).
+
+%States that the start time of a block has to be larger than the end time of a block on top of it.
+rules(_,[],_).
+rules(E, [Head|Tail], AllTasks) :-
+	starttimeOfTask(S, Head, AllTasks),
+	E #=< S,
+	rules(E, Tail, AllTasks).
+
+%Gets the start time of a task with ID Id.
+starttimeOfTask(_,_,[]).
+
+starttimeOfTask(S, Id, [task(S,_,_,_,Id)|_]).
+
+starttimeOfTask(S, Id, [Task|Tasks]):-
+	starttimeOfTask(S, Id, Tasks).

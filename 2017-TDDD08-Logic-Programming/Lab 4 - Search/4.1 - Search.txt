@@ -1,0 +1,147 @@
+%X is the number of missionaries on the wrong side and Y is the number of cannibals on the wrong side
+%Checks if state X missionaries and Y cannibals on the wrong side is valid.
+validState(X,Y):-
+	(X>=Y ; X is 0),
+	(Y>=X ; X is 3).
+%Possible actions when the boat at wrong side
+action([X1,Y1,1], [X2,Y2,0]):-
+	X1 >= 1,
+	Y1 >= 1,
+	X2 is X1-1,
+        Y2 is Y1-1,
+	once(validState(X2,Y2)).
+action([X1,Y1,1], [X2,Y1,0]):-
+	X1 >= 2,
+	X2 is X1-2,
+	once(validState(X2,Y1)).
+action([X1,Y1,1], [X1,Y2,0]):-
+	Y1 >= 2,
+	Y2 is Y1-2,
+	once(validState(X1,Y2)).
+action([X1,Y1,1], [X2,Y1,0]):-
+	X1 >= 1,
+	X2 is X1-1,
+	once(validState(X2,Y1)).
+action([X1,Y1,1], [X1,Y2,0]):-
+	Y1 >= 1,
+	Y2 is Y1-1,
+	once(validState(X1,Y2)).
+
+%Possible actions when the boat is at the correct side       
+action([X1,Y1,0], [X2,Y2,1]):-
+	X1 =< 2,
+	Y1 =< 2,
+	X2 is X1+1,
+	Y2 is Y1+1,
+	once(validState(X2,Y2)).
+action([X1,Y1,0], [X2,Y1,1]):-
+	X1 =< 1,
+	X2 is X1+2,
+	once(validState(X2,Y1)).
+action([X1,Y1,0], [X1,Y2,1]):-
+	Y1 =< 1,
+	Y2 is Y1+2,
+	once(validState(X1,Y2)).
+action([X1,Y1,0], [X2,Y1,1]):-
+	X1 =< 2,
+	X2 is X1+1,
+	once(validState(X2,Y1)).
+action([X1,Y1,0], [X1,Y2,1]):-
+	Y1 =< 2,
+	Y2 is Y1+1,
+	once(validState(X1,Y2)).
+
+%action([3,3,1],R).
+
+%Describes the goal and start states
+goal([0,0,0]).
+init([3,3,1]).
+
+%Initializes the depth first search and calls the print predicate once a goal has been found.
+df(Path):-
+	init(S0),
+	df([S0], Path).
+	%printPath(Path).
+
+%Goal found
+df([S|Visited], [S|Visited]):-
+	goal(S).
+	
+%Recursive depth first search
+df([S1|Visited], Path):-
+	action(S1, S2),
+	notExists(S2, [S1|Visited]),
+	df([S2,S1|Visited], Path).
+	
+%Initializes the breadth first search and calls the print predicate once a goal has been found.
+bf(Path):-
+	init(S0),
+	(bf([[S0]],Path)),
+	(printPath(Path)).
+
+%Goal found
+bf([[S|Path]|_], [S|Path]):-
+	goal(S).
+
+%Recursive breadth-first search
+bf([[S1|Path]|Partials], FinalPath):-
+	findall(S2,action(S1,S2),NewStates),
+	expand([S1|Path], NewStates, NewPaths),
+	append(Partials,NewPaths,NewPartials),
+	bf(NewPartials, FinalPath).
+
+%Finds all nearby states that has not already been traversed
+expand(L1, L2, L3):-
+	findall([X|L1], notLooping(X,L2,[X|L1]), L3).
+
+%Used to check wether a state has already been visited.
+notLooping(X, L2, [X|L1]):-
+	member(X,L2),
+	notExists(X,L1).
+
+%Tries to find an E such that E is never equal to H. That is, E is not a member of [H|T].
+notExists(E,[]).
+notExists(E,[H|T]):-
+	dif(E,H),
+	notExists(E,T).
+
+%Prints a more graphical solution than just a list of lists. Read output from the bottom up.
+%lines with m shows the number of missionaries on each side. c shows cannibals.
+%The boat is positioned at the side with *
+printPath([]).
+printPath([[X,Y,1]|Tail]):-
+	X1 is (3-X),
+	Y1 is (3-Y),
+	print(m),
+	print(:),
+	print(X),
+	print(*--),
+	print(X1),
+	nl,
+	print(c),
+	print(:),
+	print(Y),
+	print(*--),
+	print(Y1),
+	nl,
+	print(--------),
+	nl,
+	printPath(Tail).
+printPath([[X,Y,0]|Tail]):-
+	X1 is (3-X),
+	Y1 is (3-Y),
+	print(m),
+	print(:),
+	print(X),
+	print(--*),
+	print(X1),
+	nl,
+	print(c),
+	print(:),
+	print(Y),
+	print(--*),
+	print(Y1),
+	nl,
+	print(--------),
+	nl,
+	printPath(Tail).
